@@ -23,12 +23,13 @@ app.use((req, res, next) => {
 });
 
 // It's a convention to use /graphql
-// Do not limit it to POST requests
+// Do not limit it to POST requests, we will use graphiql, a special tool to test your API (so we need GET request too)
 app.use(
   "/graphql",
   graphqlHTTP({
     schema: graphqlSchema,
     rootValue: graphqlResolver,
+    graphiql: true // This is a special tool to test your API
   })
 );
 
