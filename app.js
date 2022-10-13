@@ -29,7 +29,19 @@ app.use(
   graphqlHTTP({
     schema: graphqlSchema,
     rootValue: graphqlResolver,
-    graphiql: true // This is a special tool to test your API
+    graphiql: true, // This is a special tool to test your API, you can remove in production
+    customFormatErrorFn: (err) => {
+      // err.originalError will be set by express-graphql when it detects and error throw in your code
+      // either by you or some other third-party package. If you have a technical error,
+      // lets say a missing character in your front-end query then it will not have the originalError.
+      if (!err.originalError) {
+        return err;
+      }
+      const data = err.originalError.data; // This can be undefined for throw errors that don't set this parameter
+      const message = err.message || 'An Error occurred.'; // This is already pulled out of the error by graphql.
+      const code = err.originalError.code || 500;
+      return { message: message, status: code, data: data }; // You can name all fields the way you want
+    },
   })
 );
 
