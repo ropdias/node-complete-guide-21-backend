@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
+const jwt = require("jsonwebtoken");
 
 const User = require("../models/user");
 
@@ -23,7 +24,7 @@ module.exports = {
       errors.push({ message: "Password too short!" });
     }
     if (errors.length > 0) {
-      const error = new Error('Invalid input.');
+      const error = new Error("Invalid input.");
       error.data = errors;
       error.code = 422;
       throw error;
@@ -41,5 +42,29 @@ module.exports = {
     });
     const createdUser = await user.save();
     return { ...createdUser._doc, _id: createdUser._id.toString() }; // We need to overwrite the _id converting it to a string
+  },
+  login: async ({ email, password }) => {
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      const error = new Error("User not found!");
+      error.code = 401;
+      throw error;
+    }
+    const isEqual = await bcrypt.compare(password, user.password);
+    if (!isEqual) {
+      const error = new Error("Password is incorrect");
+      error.code = 401;
+      throw error;
+    }
+    // Here we generate a JWT
+    const token = jwt.sign(
+      {
+        userId: user._id.toString(),
+        email: user.email,
+      },
+      process.env.JWT_SECRET, // Here is the secret key used for signin
+      { expiresIn: "1h" } // Here we stablish the token will expire and be invalid in 1hour
+    );
+    return { token: token, userId: user._id.toString() };
   },
 };
