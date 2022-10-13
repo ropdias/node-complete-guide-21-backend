@@ -3,10 +3,10 @@ const path = require("path");
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
+const { graphqlHTTP } = require("express-graphql");
 
-const { initIO } = require("./socket");
-const feedRoutes = require("./routes/feed");
-const authRoutes = require("./routes/auth");
+const graphqlSchema = require("./graphql/schema");
+const graphqlResolver = require("./graphql/resolvers");
 
 const app = express();
 
@@ -22,8 +22,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/feed", feedRoutes);
-app.use("/auth", authRoutes);
+// It's a convention to use /graphql
+// Do not limit it to POST requests
+app.use(
+  "/graphql",
+  graphqlHTTP({
+    schema: graphqlSchema,
+    rootValue: graphqlResolver,
+  })
+);
 
 // This is the special type of middleware called "error handling middleware" with 4 arguments that Express will
 // move right away to it when you can next() with an Error inside:
@@ -38,11 +45,7 @@ app.use((error, req, res, next) => {
 mongoose
   .connect(process.env.MONGODB_URI)
   .then((result) => {
-    const server = app.listen(8080);
-    const io = initIO(server);
-    io.on("connection", (socket) => {
-      console.log("Client connected");
-    });
+    app.listen(8080);
   })
   .catch((err) => {
     console.log(err);

@@ -4,8 +4,8 @@ Examples from the **"Section 28: Working with GraphQL"** of the course **"NodeJS
 
 Section 28 covered:
 
-- [ ] What is GraphQL?
-- [ ] Understanding the Setup & Writing our First Query
+- [x] What is GraphQL?
+- [x] Understanding the Setup & Writing our First Query
 - [ ] Defining a Mutation Schema
 - [ ] Adding a Mutation Resolver & GraphiQL
 - [ ] Adding Input Validation
