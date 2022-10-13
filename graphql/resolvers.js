@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
+const validator = require("validator");
 
-const User = require('../models/user');
+const User = require("../models/user");
 
 module.exports = {
   // You need a method for every query/mutation you define in your schema
@@ -11,19 +12,32 @@ module.exports = {
   // When using async/await it's automatically returning a promise behind the scenes
   createUser: async ({ userInput }, req) => {
     // const email = args.userInput.email;
-    // return User.findOne().then()
-    const existingUser = await User.findOne({email: userInput.email})
+    const errors = [];
+    if (!validator.isEmail(userInput.email)) {
+      errors.push({ message: "E-mail is invalid." });
+    }
+    if (
+      validator.isEmpty(userInput.password) ||
+      !validator.isLength(userInput.password, { min: 5 })
+    ) {
+      errors.push({ message: "Password too short!" });
+    }
+    if (errors.length > 0) {
+      const error = new Error('Invalid input.');
+      throw error;
+    }
+    const existingUser = await User.findOne({ email: userInput.email });
     if (existingUser) {
-      const error = new Error('User exists already!');
+      const error = new Error("User exists already!");
       throw error;
     }
     const hashedPw = await bcrypt.hash(userInput.password, 12);
     const user = new User({
       email: userInput.email,
       name: userInput.name,
-      password: hashedPw
-    })
+      password: hashedPw,
+    });
     const createdUser = await user.save();
-    return { ...createdUser._doc, _id: createdUser._id.toString()}; // We need to overwrite the _id converting it to a string
-  }
-}
+    return { ...createdUser._doc, _id: createdUser._id.toString() }; // We need to overwrite the _id converting it to a string
+  },
+};
