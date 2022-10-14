@@ -129,19 +129,19 @@ module.exports = {
       updatedAt: createdPost.updatedAt.toISOString(),
     };
   },
-  posts: async (args, req) => {
+  posts: async ({ page }, req) => {
     // Checking if the user is authenticated:
     if (!req.isAuth) {
       const error = new Error("Not authenticated!");
       error.code = 401;
       throw error;
     }
-    // const currentPage = +req.query.page || 1;
-    // const perPage = 2;
+    const currentPage = page || 1;
+    const perPage = 2;
     const totalPosts = await Post.find().countDocuments();
     const posts = await Post.find()
-      // .skip((currentPage - 1) * perPage)
-      // .limit(perPage)
+      .skip((currentPage - 1) * perPage)
+      .limit(perPage)
       .sort({ createdAt: -1 })
       .populate({ path: "creator", select: "name" }); // Using populate to get the name of the creator
     return {
