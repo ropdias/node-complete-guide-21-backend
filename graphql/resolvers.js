@@ -14,15 +14,30 @@ module.exports = {
   // When using async/await it's automatically returning a promise behind the scenes
   createUser: async ({ userInput }, req) => {
     // const email = args.userInput.email;
+
+    // Sanitizers:
+    const sanitizedEmail = validator.normalizeEmail(userInput.email);
+    const sanitizedPassword = validator.trim(userInput.password);
+    const sanitizedName = validator.trim(userInput.name);
+
     const errors = [];
-    if (!validator.isEmail(userInput.email)) {
-      errors.push({ message: "E-mail is invalid." });
+    if (!validator.isEmail(sanitizedEmail)) {
+      errors.push({ message: "Please enter a valid e-mail." });
+    }
+    const existingUser = await User.findOne({ email: sanitizedEmail });
+    if (existingUser) {
+      errors.push({
+        message: "E-mail exists already, please pick a different one.",
+      });
     }
     if (
-      validator.isEmpty(userInput.password) ||
-      !validator.isLength(userInput.password, { min: 5 })
+      !validator.isLength(sanitizedPassword, { min: 5 }) ||
+      !validator.isAlphanumeric(sanitizedPassword)
     ) {
       errors.push({ message: "Password too short!" });
+    }
+    if (validator.isEmpty(sanitizedName)) {
+      errors.push({ message: "Name is empty!" });
     }
     if (errors.length > 0) {
       const error = new Error("Invalid input.");
@@ -30,28 +45,27 @@ module.exports = {
       error.code = 422;
       throw error;
     }
-    const existingUser = await User.findOne({ email: userInput.email });
-    if (existingUser) {
-      const error = new Error("User exists already!");
-      throw error;
-    }
-    const hashedPw = await bcrypt.hash(userInput.password, 12);
+    const hashedPw = await bcrypt.hash(sanitizedPassword, 12);
     const user = new User({
-      email: userInput.email,
-      name: userInput.name,
+      email: sanitizedEmail,
+      name: sanitizedName,
       password: hashedPw,
     });
     const createdUser = await user.save();
     return { ...createdUser._doc, _id: createdUser._id.toString() }; // We need to overwrite the _id converting it to a string
   },
   login: async ({ email, password }) => {
-    const user = await User.findOne({ email: email });
+    // Sanitizers:
+    const sanitizedEmail = validator.normalizeEmail(email);
+    const sanitizedPassword = validator.trim(password);
+
+    const user = await User.findOne({ email: sanitizedEmail });
     if (!user) {
       const error = new Error("User not found!");
       error.code = 401;
       throw error;
     }
-    const isEqual = await bcrypt.compare(password, user.password);
+    const isEqual = await bcrypt.compare(sanitizedPassword, user.password);
     if (!isEqual) {
       const error = new Error("Password is incorrect");
       error.code = 401;
@@ -69,17 +83,15 @@ module.exports = {
     return { token: token, userId: user._id.toString() };
   },
   createPost: async ({ postInput }, req) => {
+    // Sanitizers:
+    const sanitizedTitle = validator.trim(postInput.title);
+    const sanitizedContent = validator.trim(postInput.content);
+
     const errors = [];
-    if (
-      validator.isEmpty(postInput.title) ||
-      !validator.isLength(postInput.title, { min: 5 })
-    ) {
+    if (!validator.isLength(sanitizedTitle, { min: 5 })) {
       errors.push({ message: "Title is invalid." });
     }
-    if (
-      validator.isEmpty(postInput.content) ||
-      !validator.isLength(postInput.content, { min: 5 })
-    ) {
+    if (!validator.isLength(sanitizedContent, { min: 5 })) {
       errors.push({ message: "Content is invalid." });
     }
     if (errors.length > 0) {
@@ -89,8 +101,8 @@ module.exports = {
       throw error;
     }
     const post = new Post({
-      title: postInput.title,
-      content: postInput.content,
+      title: sanitizedTitle,
+      content: sanitizedContent,
       imageUrl: postInput.imageUrl,
       // creator: req.userId, // This will be a string not an object but mongoose will convert it for us
     });
