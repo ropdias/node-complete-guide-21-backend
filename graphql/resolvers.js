@@ -116,7 +116,7 @@ module.exports = {
       title: sanitizedTitle,
       content: sanitizedContent,
       imageUrl: postInput.imageUrl,
-      creator: user
+      creator: user,
     });
     const createdPost = await post.save();
     // Add post to user posts
@@ -127,6 +127,33 @@ module.exports = {
       _id: createdPost._id.toString(),
       createdAt: createdPost.createdAt.toISOString(),
       updatedAt: createdPost.updatedAt.toISOString(),
+    };
+  },
+  posts: async (args, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+    // const currentPage = +req.query.page || 1;
+    // const perPage = 2;
+    const totalPosts = await Post.find().countDocuments();
+    const posts = await Post.find()
+      // .skip((currentPage - 1) * perPage)
+      // .limit(perPage)
+      .sort({ createdAt: -1 })
+      .populate({ path: "creator", select: "name" }); // Using populate to get the name of the creator
+    return {
+      posts: posts.map((p) => {
+        return {
+          ...p._doc,
+          _id: p._id.toString(),
+          createdAt: p.createdAt.toISOString(),
+          updatedAt: p.updatedAt.toISOString(),
+        };
+      }),
+      totalPosts: totalPosts,
     };
   },
 };
