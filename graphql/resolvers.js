@@ -83,6 +83,12 @@ module.exports = {
     return { token: token, userId: user._id.toString() };
   },
   createPost: async ({ postInput }, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
     // Sanitizers:
     const sanitizedTitle = validator.trim(postInput.title);
     const sanitizedContent = validator.trim(postInput.content);
@@ -100,14 +106,22 @@ module.exports = {
       error.code = 422;
       throw error;
     }
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("A user with this id could not be found.");
+      error.code = 401;
+      throw error;
+    }
     const post = new Post({
       title: sanitizedTitle,
       content: sanitizedContent,
       imageUrl: postInput.imageUrl,
-      // creator: req.userId, // This will be a string not an object but mongoose will convert it for us
+      creator: user
     });
     const createdPost = await post.save();
-    // Add post to users posts
+    // Add post to user posts
+    user.posts.push(createdPost); // Here mongoose will do all the heavy lifting of pulling out the post ID and adding that to the user actually
+    await user.save();
     return {
       ...createdPost._doc,
       _id: createdPost._id.toString(),

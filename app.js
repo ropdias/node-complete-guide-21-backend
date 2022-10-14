@@ -7,6 +7,7 @@ const { graphqlHTTP } = require("express-graphql");
 
 const graphqlSchema = require("./graphql/schema");
 const graphqlResolver = require("./graphql/resolvers");
+const auth = require('./middleware/auth');
 
 const app = express();
 
@@ -24,6 +25,8 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use(auth);
 
 // It's a convention to use /graphql
 // Do not limit it to POST requests, we will use graphiql, a special tool to test your API (so we need GET request too)

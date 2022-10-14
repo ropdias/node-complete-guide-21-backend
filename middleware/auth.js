@@ -3,9 +3,11 @@ const jwt = require("jsonwebtoken");
 module.exports = (req, res, next) => {
   const authHeader = req.get('Authorization'); // Getting the request header 'Authorization'
   if (!authHeader) {
-    const error = new Error('Not authenticated.');
-    error.statusCode = 401;
-    throw error;
+    // const error = new Error('Not authenticated.');
+    // error.statusCode = 401;
+    // throw error;
+    req.isAuth = false; // with graphql we will handle this inside our resolver instead of throwing an error
+    return next();
   }
   const token = authHeader.split(" ")[1];
   let decodedToken;
@@ -14,17 +16,22 @@ module.exports = (req, res, next) => {
     decodedToken = jwt.verify(token, process.env.JWT_SECRET); // this will decode it and check if it's valid
   } catch (err) {
     // This can fail so we are catching any errors here:
-    err.statusCode = 500;
-    throw err;
+    // err.statusCode = 500;
+    // throw err;
+    req.isAuth = false; // with graphql we will handle this inside our resolver instead of throwing an error
+    return next();
   }
   // This can be undefined if it didn't fail technically but it was unable to verify the token
   if (!decodedToken) {
-    const error = new Error("Not authenticated.");
-    error.statusCode = 401;
-    throw error;
+    // const error = new Error("Not authenticated.");
+    // error.statusCode = 401;
+    // throw error;
+    req.isAuth = false; // with graphql we will handle this inside our resolver instead of throwing an error
+    return next();
   }
   // We will now store information from the token in our request that will be useful
   // later when we want to authorize access to for example deleting posts
   req.userId = decodedToken.userId;
+  req.isAuth = true; // new property to handle with graphql
   next();
 };
