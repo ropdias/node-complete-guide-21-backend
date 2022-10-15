@@ -257,7 +257,8 @@ module.exports = {
       error.code = 404; // Not Found error
       throw error;
     }
-    if (post.creator.toString() !== req.userId.toString()) { // We did not populate so creator is the _id already
+    if (post.creator.toString() !== req.userId.toString()) {
+      // We did not populate so creator is the _id already
       const error = new Error("Not authorized!");
       error.code = 403; // Forbidden
       throw error;
@@ -282,5 +283,42 @@ module.exports = {
     } else {
       return true;
     }
+  },
+
+  // We are adding a general user query but we can get only the status if we want
+  user: async (args, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("A user with this id could not be found.");
+      error.code = 404; // Not Found error
+      throw error;
+    }
+    return { ...user._doc, _id: user._id.toString() };
+  },
+
+  updateStatus: async ({ status }, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error("A user with this id could not be found.");
+      error.code = 404; // Not Found error
+      throw error;
+    }
+    user.status = status;
+    await user.save();
+    return { ...user._doc, _id: user._id.toString() };
   },
 };
