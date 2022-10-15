@@ -82,6 +82,11 @@ module.exports = {
     );
     return { token: token, userId: user._id.toString() };
   },
+
+  // If anything fails the image will still be saved in the server.
+  // Obs: We are not checking if the image really was uploaded or not, because we can't control
+  // that from here, only in the REST endpoint. So we are just saving in the DB the imageUrl that was
+  // sent to the graphQL query without any validation, even if it was "undefined".
   createPost: async ({ postInput }, req) => {
     // Checking if the user is authenticated:
     if (!req.isAuth) {
@@ -177,6 +182,64 @@ module.exports = {
       _id: post._id.toString(),
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
+    };
+  },
+
+  // If anything fails the image will still be saved in the server.
+  // You should not try to delete the last image here in the resolver, because someone could send a graphql query directly
+  // without really saving an image and in the DB you could have an image that is undefined or the path does not exist
+  // Everything related to the imageUrl should be handled in the REST endpoint where you save the image in the backend
+  updatePost: async ({ id, postInput }, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+
+    // Sanitizers:
+    const sanitizedTitle = validator.trim(postInput.title);
+    const sanitizedContent = validator.trim(postInput.content);
+
+    const errors = [];
+    if (!validator.isLength(sanitizedTitle, { min: 5 })) {
+      errors.push({ message: "Title is invalid." });
+    }
+    if (!validator.isLength(sanitizedContent, { min: 5 })) {
+      errors.push({ message: "Content is invalid." });
+    }
+    if (errors.length > 0) {
+      const error = new Error("Invalid input.");
+      error.data = errors;
+      error.code = 422;
+      throw error;
+    }
+
+    const post = await Post.findById(id).populate({
+      path: "creator",
+      select: "name",
+    }); // Using populate to get the name of the creator
+    if (!post) {
+      const error = new Error("Could not find post.");
+      error.code = 404; // Not Found error
+      throw error;
+    }
+    if (post.creator._id.toString() !== req.userId.toString()) {
+      const error = new Error("Not authorized!");
+      error.code = 403; // Forbidden
+      throw error;
+    }
+    post.title = sanitizedTitle;
+    post.content = sanitizedContent;
+    if (postInput.imageUrl !== "undefined") {
+      post.imageUrl = postInput.imageUrl;
+    }
+    const updatedPost = await post.save();
+    return {
+      ...updatedPost._doc,
+      _id: updatedPost._id.toString(),
+      createdAt: updatedPost.createdAt.toISOString(),
+      updatedAt: updatedPost.updatedAt.toISOString(),
     };
   },
 };
