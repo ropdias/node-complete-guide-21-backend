@@ -156,4 +156,27 @@ module.exports = {
       totalPosts: totalPosts,
     };
   },
+  post: async ({ id }, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+    const post = await Post.findById(id).populate({
+      path: "creator",
+      select: "name",
+    }); // Using populate to get the name of the creator;
+    if (!post) {
+      const error = new Error("Could not find post.");
+      error.code = 404; // Not Found error
+      throw error;
+    }
+    return {
+      ...post._doc,
+      _id: post._id.toString(),
+      createdAt: post.createdAt.toISOString(),
+      updatedAt: post.updatedAt.toISOString(),
+    };
+  },
 };
