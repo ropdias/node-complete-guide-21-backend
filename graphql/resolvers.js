@@ -1,3 +1,5 @@
+const { unlink } = require("fs/promises");
+
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
@@ -241,5 +243,44 @@ module.exports = {
       createdAt: updatedPost.createdAt.toISOString(),
       updatedAt: updatedPost.updatedAt.toISOString(),
     };
+  },
+  deletePost: async ({ id }, req) => {
+    // Checking if the user is authenticated:
+    if (!req.isAuth) {
+      const error = new Error("Not authenticated!");
+      error.code = 401;
+      throw error;
+    }
+    const post = await Post.findById(id);
+    if (!post) {
+      const error = new Error("Could not find post.");
+      error.code = 404; // Not Found error
+      throw error;
+    }
+    if (post.creator.toString() !== req.userId.toString()) { // We did not populate so creator is the _id already
+      const error = new Error("Not authorized!");
+      error.code = 403; // Forbidden
+      throw error;
+    }
+    const promiseDeleteImage = unlink(post.imageUrl);
+    const promiseDeletePost = Post.findByIdAndRemove(id).then(() => {
+      return User.updateOne({ _id: req.userId }, { $pull: { posts: id } });
+    });
+    const results = await Promise.allSettled([
+      promiseDeleteImage,
+      promiseDeletePost,
+    ]);
+    if (
+      results[0].status !== "fulfilled" &&
+      results[1].status !== "fulfilled"
+    ) {
+      throw new Error("Deleting image and the post failed.");
+    } else if (results[0].status !== "fulfilled") {
+      throw new Error("Deleting image failed.");
+    } else if (results[1].status !== "fulfilled") {
+      throw new Error("Deleting post failed.");
+    } else {
+      return true;
+    }
   },
 };
